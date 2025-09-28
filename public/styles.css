@@ -1,0 +1,478 @@
+/* public/styles.css */
+
+/* ----- Theme tokens (라이트/다크 전환) ----- */
+:root {
+  --bg: #DDDDDD;          /* 배경 */
+  --panel: #EEEEEE;       /* 카드/패널 */
+  --text: #2c2924;        /* 본문 텍스트 */
+  --muted: #423c33;       /* 보조 텍스트 */
+  --border: #e0ddd5;      /* 카드/테이블 보더 */
+  --accent: #4338ca;      /* 버튼/링크 (인디고 톤 다운) */
+  --accent-2: #228B22;    /* 성공/허용 (포레스트 그린) */
+  --accent-3: #d9534f;    /* 차단/위험 (벽돌 레드) */
+  --ring: #18126e;
+  --shadow: 0 1px 3px rgba(0,0,0,.1); /* 그림자 토큰  */
+  --sev-low: #59a14f;
+  --sev-medium: #edc949;
+  --sev-high: #e15759;
+  --sev-critical: #c0392b;
+}
+
+:root.dark {
+  --bg: #0b0f14;
+  --panel: #111827;
+  --text: #ffffff;
+  --muted: #cbd5e1;
+  --border: #1f2937;
+  --accent: #2a267a;
+  --accent-2: #1a6b1a;
+  --accent-3: #9c2f2b;
+  --ring: rgba(106,163,255,.25);
+  --shadow: 0 1px 3px rgba(0,0,0,.35);
+  --sev-low: #3e7a38;
+  --sev-medium: #b7950b;
+  --sev-high: #b03a2e;
+  --sev-critical: #992d22;
+}
+
+/* ------------ BASE ----------- */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", Arial, "Apple SD Gothic Neo", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* 스크롤 컨테이너에서 가로 스크롤 부드럽게 */
+.table-wrap { overflow-x: auto; }
+
+/* 캔버스(차트) 반응형 */
+canvas { max-width: 100%; height: auto; }
+
+/* ------------- SIDEBAR + HAMBURGER --------------- */
+.sidebar {
+  position: fixed; inset: 0 auto 0 0;
+  width: 240px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  gap: 12px; padding: 16px 20px;
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+
+.brand {
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--text);
+  text-decoration: none;
+}
+.brand:hover { opacity: 0.8; }
+
+.hamburger {
+  display: none; /* 데스크탑 기본 숨김 → 모바일에서 표시 */
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.sidebar nav {
+  display: grid; gap: 6px; margin-top: 8px;
+  z-index: 35;
+}
+.sidebar nav a {
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--text);
+}
+.sidebar nav a:not(.active):hover { background: rgba(44,41,36,0.05); }
+:root.dark .sidebar nav a:not(.active):hover { background: rgba(255,255,255,.06); }
+.sidebar nav a.active { background: var(--accent); color: #fff; }
+
+.sidebar-footer { margin-top: auto; }
+
+/* ------------- PAGE / TOPBAR ---------------- */
+.page {
+  margin-left: 240px;
+  min-height: 100%;
+  display: flex; flex-direction: column;
+}
+
+.topbar {
+  position: sticky; top: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  z-index: 50;
+}
+.topbar h1 { margin: 0; font-size: 20px; }
+
+.top-actions { display: flex; gap: 10px; align-items: center; }
+/* === Severity Custom Select - 강한 우선순위로 전역 button 스타일 무력화 === */
+.top-actions .select { position: relative; }
+.top-actions select, button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* 전역 button 규칙보다 뒤에서, 더 구체적으로 */
+.top-actions .select .select-trigger {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);      /* ← 보라색(Accent) 아님 */
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.top-actions .select .select-trigger:hover { filter: brightness(.98); }
+.top-actions .select .select-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.top-actions .select .select-caret { opacity: .7; }
+
+/* 목록: 기본은 숨김 + 불릿 제거 */
+.top-actions .select .select-list {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 220px; max-height: 240px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow);
+  padding: 6px 0; margin: 0;
+  list-style: none;              /* ← 불릿 제거 */
+  list-style-type: none;         /* ← 안전장치 */
+  display: none;                 /* ← 기본은 닫힘 */
+  z-index: 60;
+}
+.top-actions .select.open .select-list { display: block; }
+
+/* li 자체에도 한 번 더 방탄 */
+.top-actions .select .select-list .option {
+  list-style: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; color: var(--text);
+}
+.top-actions .select .select-list .option:hover { background: rgba(44,41,36,0.05); }
+:root.dark .top-actions .select .select-list .option:hover { background: rgba(255,255,255,.06); }
+.top-actions .select .select-list .option.active { font-weight: 800; }
+
+/* 작은 severity 점 */
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.sev-low { background: var(--sev-low); }
+.sev-medium { background: var(--sev-medium); }
+.sev-high { background: var(--sev-high); }
+.sev-critical { background: var(--sev-critical); }
+
+/* 접근성: 화면에서 숨기지만 값/이벤트 유지 */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+select:hover {
+  background: rgba(44,41,36,0.05);
+}
+
+:root.dark select:hover {
+  background: rgba(255,255,255,.06);
+}
+
+/* button */
+button {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+button:hover { filter: brightness(0.95); }
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+button.ghost:hover { background: rgba(44,41,36,0.05); }
+:root.dark button.ghost:hover { background: rgba(255,255,255,.06); }
+
+button.refresh {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+button.refresh:hover {
+  background: #18126e;
+}
+
+/* --------------- CONTENT / GRID / CARD ------------------ */
+.content { padding: 20px; display: grid; gap: 20px; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  min-width: 0;               /* 🔹 그리드에서 수축 가능하도록 */
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.card h3 { margin: 0; font-size: 16px; }
+
+/* 카드 내부 차트가 부모 비율을 따르도록 */
+.card canvas {
+  width: 100% !important;
+  height: clamp(180px, 32vh, 300px) !important; /* 🔹 화면 높이에 맞춰 유연 */
+  display: block;
+}
+
+/* KPI */
+.kpi { padding: 18px; }
+.kpi-title { font-size: 12px; color: var(--muted); }
+.kpi-value { font-size: 28px; font-weight: 800; margin-top: 6px; color: var(--text); }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.accent-red { color: var(--accent-3); }
+.accent-green { color: var(--accent-2); }
+
+/* ----------------- TABLE --------------------*/
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+th, td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+thead { background: #DDDDDD; }
+:root.dark thead { background: #101520; }
+thead th { font-size: 12px; color: var(--muted); font-weight: 700; }
+tbody tr:hover { background: #e9e9e9; }
+:root.dark tbody tr:hover { background: rgba(255,255,255,.06); }
+
+.muted { color: var(--muted); }
+
+/* -------------- 강제 모바일(겹침 감지용) ----------------*/
+/* JS가 html에 .force-mobile 붙이면, 해상도와 무관하게 모바일 레이아웃 강제 */
+:root.force-mobile .sidebar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px; width: 100%;
+  flex-direction: row; align-items: center;
+  padding: 8px 12px; border-right: none; border-bottom: 1px solid var(--border);
+}
+:root.force-mobile .hamburger {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 10px;
+}
+:root.force-mobile .sidebar nav {
+  display: none;
+  position: absolute; top: 56px; left: 0; right: 0;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 12px; flex-direction: column; gap: 8px; box-shadow: var(--shadow);
+}
+:root.force-mobile .sidebar.open nav { display: flex; }
+:root.force-mobile .sidebar-footer { display: none; }
+:root.force-mobile .page { margin-left: 0; margin-top: 56px; }
+
+/* --------------RESPONSIVE ----------------*/
+
+/* Large tablets (<= 1100px): 2열 차트로 유지, KPI 줄이기 준비 */
+@media (max-width: 1100px) {
+  .grid.two { grid-template-columns: 1fr; } /* 차트 한 줄로 */
+}
+
+/* Tablets (<= 900px): 사이드바 폭 축소, KPI 2열 */
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sidebar { width: 200px; }
+  .page { margin-left: 200px; }
+}
+
+/* Mobile (<= 640px): 상단 고정 바 + 햄버거 메뉴 */
+@media (max-width: 640px) {
+  /* 상단바처럼 얇은 헤더로 변환 */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hamburger {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    height: 36px;
+    padding: 0 10px;
+  }
+
+  .sidebar nav {
+    display: none; /* 기본 숨김 (햄버거로 열기) */
+    position: absolute;
+    top: 56px; left: 0; right: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow);
+  }
+  .sidebar.open nav { display: flex; }
+
+  .sidebar-footer { display: none; }
+
+  .page { margin-left: 0; margin-top: 56px; }
+
+  .kpis { grid-template-columns: 1fr; }
+}
+
+/* -------- MOTION PREFERENCE ----------- */
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; }
+}
+
+/* === Modal (Reports Preview) === */
+.modal { 
+  position: fixed; 
+  inset: 0; 
+  display: none; 
+  z-index: 1000;            /* 사이드바(40), 탑바(50)보다 훨씬 위 */
+}
+.modal.open { display: block; }
+
+.modal-backdrop {
+  position: absolute; 
+  inset: 0; 
+  background: rgba(0,0,0,.35);
+}
+
+.modal-panel {
+  position: absolute;
+  left: 50%;
+  top: 10vh;
+  transform: translateX(-50%);
+  max-width: min(900px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  /* 카드 느낌 유지: 이미 card 클래스가 있어서 배경/보더/그림자는 카드 토큰 사용 */
+}
+
+/* 모달 열릴 땐 바디 스크롤 잠금 */
+body.modal-open { overflow: hidden; }
+
+/* 버튼 스타일 (링크에도 사용 가능) */
+.btn {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.btn:hover { filter: brightness(.95); }
+.btn.small { font-size: 12px; padding: 4px 10px; }
+.btn.ghost { background: transparent; color: var(--text); }
+
+/* 입력 통일 */
+.input, input[type="text"], input[type="date"], input[type="datetime-local"] {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.input::placeholder { color: var(--muted); opacity: .8; }
+
+/* 커스텀 셀렉트 (Severity 스타일 재활용) */
+.select { position: relative; }
+.select .select-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.select .select-caret { opacity: .7; }
+.select .select-list {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  min-width: 120px; max-height: 240px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow);
+  padding: 6px 0; margin: 0; list-style: none; display: none; z-index: 60;
+}
+.select.open .select-list { display: block; }
+.select .option {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.select .option:hover { background: rgba(44,41,36,0.05); }
+:root.dark .select .option:hover { background: rgba(255,255,255,.06); }
+.select .option.active { font-weight: 800; }

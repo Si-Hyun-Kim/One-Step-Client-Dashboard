@@ -1,0 +1,367 @@
+<!-- views/dashboard.ejs -->
+
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard • One Step FW</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <!-- 라이브러리 & 공통 스크립트 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="/common.js" defer></script>
+  <script src="/charts.js" defer></script>
+</head>
+<body>
+  <!-- 사이드바 -->
+  <%- include('partials/_sidebar', { active }) %>
+
+  <div class="page">
+    <!-- 상단바 (pageTitle을 명시적으로 전달) -->
+    <%- include('partials/_topbar', { pageTitle: 'Dashboard', active }) %>
+
+    <main class="content">
+      <!-- KPI 카드 -->
+      <%- include('partials/_kpi', { summary }) %>
+
+      <!-- 차트 -->
+      <section class="grid two">
+        <div class="card">
+          <div class="card-head"><h3>Traffic Trend</h3></div>
+          <canvas id="trendChart" height="120"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Top Applications (bytes)</h3></div>
+          <canvas id="appsChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <!-- 최근 알림 테이블 -->
+      <section class="card">
+        <div class="card-head">
+          <h3>Recent Alerts</h3>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <!-- Action 커스텀 셀렉트 -->
+            <label class="muted" style="font-size:12px;">Action</label>
+            <div class="select" id="actionSelect">
+              <button type="button" class="select-trigger">
+                <span class="select-value">ALL</span><span class="select-caret">▾</span>
+              </button>
+              <ul class="select-list" role="listbox">
+                <li class="option active" data-value="">ALL</li>
+                <li class="option" data-value="BLOCK">BLOCK</li>
+                <li class="option" data-value="ALLOW">ALLOW</li>
+              </ul>
+            </div>
+            <select id="actionFilter" class="visually-hidden" aria-hidden="true" tabindex="-1">
+              <option value="">ALL</option>
+              <option value="BLOCK">BLOCK</option>
+              <option value="ALLOW">ALLOW</option>
+            </select>
+
+            <!-- Rule 검색 -->
+            <label class="muted" style="font-size:12px;">Rule</label>
+            <input id="ruleFilter" class="input" type="text" placeholder="Search rule…" style="width:160px;">
+
+            <!-- 날짜 -->
+            <label class="muted" style="font-size:12px;">From</label>
+            <input id="timeFrom" class="input" type="datetime-local">
+            <label class="muted" style="font-size:12px;">To</label>
+            <input id="timeTo" class="input" type="datetime-local">
+
+            <!-- 카운트 & More -->
+            <span class="muted" id="alertsCount"><%= alerts.length %> items</span>
+            <a href="/alerts" class="btn small">More</a>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th id="thTime" style="cursor:pointer;">Time <span id="sortIcon">▼</span></th>
+                <th>Src IP</th>
+                <th>Dst IP</th>
+                <th>Action</th>
+                <th>Severity</th>
+                <th>Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% for (const a of alerts) { 
+                const sevClass = {
+                  LOW: 'sev-low', MEDIUM: 'sev-medium', HIGH: 'sev-high', CRITICAL: 'sev-critical'
+                }[a.severity] || '';
+              %>
+                <tr 
+                  data-sev="<%= a.severity %>" 
+                  data-action="<%= a.action %>" 
+                  data-rule="<%= a.rule %>" 
+                  data-ts="<%= Date.parse(a.timestamp) %>"
+                >
+                  <td><%= a.id %></td>
+                  <td><%= new Date(a.timestamp).toLocaleString() %></td>
+                  <td><%= a.source_ip %></td>
+                  <td><%= a.dest_ip %></td>
+                  <td style="font-weight:700; color:<%= a.action==='BLOCK' ? 'var(--accent-3)' : 'var(--accent-2)' %>;"><%= a.action %></td>
+                  <td>
+                    <span class="sev-dot <%= sevClass %>" style="margin-right:8px;"></span>
+                    <%= a.severity %>
+                  </td>
+                  <td><%= a.rule %></td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- JS: 테마 초기화 & KPI/차트/테이블 동기화 -->
+  <script>
+    // ----- 서버 데이터 -----
+    const SUMMARY    = <%- JSON.stringify(summary) %>;
+    const ALL_ALERTS = <%- JSON.stringify(alerts) %>;
+
+    // ----- 헬퍼 -----
+    const $  = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+    // KPI 엘리먼트
+    const kpiTotal   = $('#kpiTotal');
+    const kpiBlocked = $('#kpiBlocked');
+    const kpiAllowed = $('#kpiAllowed');
+    const kpiHosts   = $('#kpiHosts');
+
+    // 테이블 행
+    const tableRows = $$('table tbody tr');
+
+    // Trend 차트 라벨 → 분 단위
+    const LABELS = SUMMARY.timeseries.labels;
+    const LABEL_MINUTES = LABELS.map(l => {
+      const [hh, mm] = String(l).split(':').map(Number);
+      return (hh || 0) * 60 + (mm || 0);
+    });
+    const alertToLabelIndex = (ts) => {
+      const d = new Date(ts);
+      const m = d.getHours() * 60 + d.getMinutes();
+      let best = 0, bestDiff = Infinity;
+      for (let i = 0; i < LABEL_MINUTES.length; i++) {
+        const diff = Math.abs(LABEL_MINUTES[i] - m);
+        if (diff < bestDiff) { bestDiff = diff; best = i; }
+      }
+      return best;
+    };
+
+    // ----- Severity 필터 (KPI/Trend/표 표시 토글) -----
+    function applySeverityFilter() {
+      const sel = document.getElementById('severity');
+      const value = sel ? sel.value : '';
+      const filtered = value ? ALL_ALERTS.filter(a => a.severity === value) : ALL_ALERTS;
+
+      // 표 행 show/hide
+      tableRows.forEach(tr => {
+        tr.style.display = (!value || value === (tr.dataset.sev||'')) ? '' : 'none';
+      });
+
+      // KPI
+      const total   = filtered.length;
+      const blocked = filtered.filter(a => a.action === 'BLOCK').length;
+      const allowed = total - blocked;
+      const hostSet = new Set();
+      filtered.forEach(a => { if (a.source_ip) hostSet.add(a.source_ip); if (a.dest_ip) hostSet.add(a.dest_ip); });
+
+      if (kpiTotal)   kpiTotal.textContent   = total.toLocaleString();
+      if (kpiBlocked) kpiBlocked.textContent = blocked.toLocaleString();
+      if (kpiAllowed) kpiAllowed.textContent = allowed.toLocaleString();
+      if (kpiHosts)   kpiHosts.textContent   = hostSet.size.toLocaleString();
+
+      // Trend 재계산
+      const blockedSeries = Array(LABELS.length).fill(0);
+      const allowedSeries = Array(LABELS.length).fill(0);
+      filtered.forEach(a => {
+        const i = alertToLabelIndex(a.timestamp);
+        if (a.action === 'BLOCK') blockedSeries[i]++; else allowedSeries[i]++;
+      });
+
+      const baseMax = Math.max(...SUMMARY.timeseries.blocked, ...SUMMARY.timeseries.allowed);
+      const curMax  = Math.max(...blockedSeries, ...allowedSeries, 0);
+      const suggestedMax = Math.max(baseMax, curMax, 5);
+
+      ChartBuilder.buildTrendChart({
+        timeseries: { labels: LABELS, blocked: blockedSeries, allowed: allowedSeries }
+      }, { scales: { y: { beginAtZero: true, suggestedMax } } });
+      ChartBuilder.applyChartTheme();
+    }
+
+    // ----- Severity(상단) 커스텀 셀렉트 -----
+    function initSeveritySelect() {
+      const wrap   = document.getElementById('sevSelect');
+      const button = wrap?.querySelector('.select-trigger');
+      const list   = wrap?.querySelector('.select-list');
+      const label  = wrap?.querySelector('.select-value');
+      const hidden = document.getElementById('severity');
+      if (!wrap || !button || !list || !label || !hidden) return;
+
+      const open  = () => { wrap.classList.add('open');  button.setAttribute('aria-expanded','true'); };
+      const close = () => { wrap.classList.remove('open'); button.setAttribute('aria-expanded','false'); };
+
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        wrap.classList.contains('open') ? close() : open();
+      });
+      list.addEventListener('click', (e) => {
+        const li = e.target.closest('.option'); if (!li) return;
+        list.querySelectorAll('.option').forEach(o => o.classList.toggle('active', o === li));
+        const val = li.dataset.value ?? '';
+        label.textContent = val ? val : 'Severity: ALL';
+        hidden.value = val;
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        close();
+      });
+      document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) close(); });
+
+      const v = hidden.value;
+      const init = list.querySelector(`.option[data-value="${v}"]`) || list.querySelector('.option[data-value=""]');
+      init?.classList.add('active');
+      label.textContent = v ? v : 'Severity: ALL';
+    }
+
+    // ----- Action 커스텀 셀렉트 -----
+    function initActionSelect() {
+      const wrap   = document.getElementById('actionSelect');
+      const button = wrap?.querySelector('.select-trigger');
+      const list   = wrap?.querySelector('.select-list');
+      const label  = wrap?.querySelector('.select-value');
+      const hidden = document.getElementById('actionFilter');
+      if (!wrap || !button || !list || !label || !hidden) return;
+
+      const open  = () => { wrap.classList.add('open');  button.setAttribute('aria-expanded','true'); };
+      const close = () => { wrap.classList.remove('open'); button.setAttribute('aria-expanded','false'); };
+
+      wrap.addEventListener('click', (e) => {
+        const trig = e.target.closest('.select-trigger');
+        if (!trig) return;
+        e.stopPropagation();
+        wrap.classList.contains('open') ? close() : open();
+      });
+      list.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const li = e.target.closest('.option'); if (!li) return;
+        list.querySelectorAll('.option').forEach(o => o.classList.toggle('active', o === li));
+        const val = li.dataset.value ?? '';
+        label.textContent = val || 'ALL';
+        hidden.value = val;
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        close();
+      });
+      document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) close(); });
+
+      label.textContent = hidden.value || 'ALL';
+    }
+
+    // ----- Recent Alerts: 필터/정렬 -----
+    let TIME_ORDER = 'desc'; // 기본: 최신이 위
+    function applyAlertsTableFilters() {
+      const tbody = document.querySelector('table tbody');
+      const rows  = Array.from(tbody.querySelectorAll('tr'));
+
+      const selSev = (document.getElementById('severity')?.value || '');
+      const action = document.getElementById('actionFilter')?.value || '';
+      const ruleQ  = (document.getElementById('ruleFilter')?.value || '').trim().toLowerCase();
+      const fromV  = document.getElementById('timeFrom')?.value;
+      const toV    = document.getElementById('timeTo')?.value;
+
+      const fromTs = fromV ? new Date(fromV).getTime() : -Infinity;
+      const toTs   = toV   ? new Date(toV).getTime()   :  Infinity;
+
+      let visibleRows = [];
+      rows.forEach(tr => {
+        const sev = tr.dataset.sev || '';
+        const act = tr.dataset.action || '';
+        const rule= (tr.dataset.rule || '').toLowerCase();
+        const ts  = Number(tr.dataset.ts) || 0;
+
+        const okSev = (!selSev || selSev === sev);
+        const okAct = (!action || action === act);
+        const okRule= (!ruleQ || rule.includes(ruleQ));
+        const okTime= (ts >= fromTs && ts <= toTs);
+
+        const show = okSev && okAct && okRule && okTime;
+        tr.style.display = show ? '' : 'none';
+        if (show) visibleRows.push(tr);
+      });
+
+      visibleRows.sort((a,b) => {
+        const ta = Number(a.dataset.ts) || 0;
+        const tb = Number(b.dataset.ts) || 0;
+        return TIME_ORDER === 'asc' ? (ta - tb) : (tb - ta);
+      });
+      visibleRows.forEach(tr => tbody.appendChild(tr));
+
+      const cnt = document.getElementById('alertsCount');
+      if (cnt) cnt.textContent = `${visibleRows.length} items`;
+    }
+    function bindAlertsTableFilters() {
+      document.getElementById('actionFilter')?.addEventListener('change', applyAlertsTableFilters);
+      document.getElementById('ruleFilter')?.addEventListener('input',  applyAlertsTableFilters);
+      document.getElementById('timeFrom')?.addEventListener('change',   applyAlertsTableFilters);
+      document.getElementById('timeTo')?.addEventListener('change',     applyAlertsTableFilters);
+
+      // Time 헤더 클릭 → 오름/내림 토글
+      const th = document.getElementById('thTime');
+      const icon = document.getElementById('sortIcon');
+      th?.addEventListener('click', () => {
+        TIME_ORDER = (TIME_ORDER === 'asc') ? 'desc' : 'asc';
+        if (icon) icon.textContent = (TIME_ORDER === 'asc') ? '▲' : '▼';
+        applyAlertsTableFilters();
+      });
+    }
+
+    // Severity 변경 이후 표 필터도 재적용
+    const _applySeverityFilter = applySeverityFilter;
+    applySeverityFilter = function() {
+      _applySeverityFilter();
+      applyAlertsTableFilters();
+    };
+
+    // ----- 초기화 (한 번만) -----
+    window.addEventListener('DOMContentLoaded', () => {
+      // 테마/레이아웃
+      if (window.ChartTheme) {
+        ChartTheme.initThemeFromStorage();
+        ChartTheme.bindThemeToggle();
+        ChartTheme.applyChartTheme();
+        ChartTheme.observeLayout();
+        ChartTheme.observeCardsForResize();
+      } else if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+
+      // 차트 최초 렌더
+      ChartBuilder.buildTrendChart(SUMMARY);
+      ChartBuilder.buildAppsChart(SUMMARY.topApps);
+      ChartBuilder.applyChartTheme();
+
+      // UI 바인딩
+      initSeveritySelect();
+      initActionSelect();
+      bindAlertsTableFilters();
+
+      // 최초 필터 적용
+      const sel = document.getElementById('severity');
+      if (sel) sel.addEventListener('change', applySeverityFilter);
+      applySeverityFilter();      // KPI/Trend
+      applyAlertsTableFilters();  // 표
+
+      // Refresh
+      document.getElementById('refreshBtn')?.addEventListener('click', () => window.location.reload());
+    });
+  </script>
+
+</body>
+</html>

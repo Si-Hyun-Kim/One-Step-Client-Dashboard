@@ -1,0 +1,33 @@
+<!-- views/settings.ejs -->
+
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Settings • One Step FW</title><link rel="stylesheet" href="/styles.css"/>
+</head><body>
+  <%- include('partials/_sidebar', { active }) %>
+  <div class="page">
+    <%- include('partials/_topbar') %>
+    <main class="content">
+      <section class="grid two">
+        <div class="card">
+          <h3>General</h3>
+          <p class="muted">시간대/테마/API 키 등 기본 설정</p>
+          <ul>
+            <li>Timezone: <strong><%= settings.timezone %></strong></li>
+            <li>Theme: <strong><%= settings.theme %></strong></li>
+            <li>API Key: <strong><%= settings.apiKeySet ? 'Configured' : 'Not set' %></strong></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Security</h3>
+          <p class="muted">인증/권한/로그 보존 기간 등</p>
+          <button class="ghost">Rotate API Key</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    document.getElementById("themeToggle")?.addEventListener("click",()=>{const r=document.documentElement;r.classList.toggle("dark");localStorage.setItem("theme",r.classList.contains("dark")?"dark":"light")});
+    if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+  </script>
+</body></html>

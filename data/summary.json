@@ -1,0 +1,24 @@
+{
+  "scripts": {
+    "__comment" : "data/summary.json"
+  },
+  "kpis": {
+    "totalAlerts": 770,
+    "blocked": 505,
+    "allowed": 265,
+    "activeHosts": 10,
+    "cpuLoad": 23
+  },
+  "timeseries": {
+    "labels": ["10:20","10:30","10:40","10:50","11:00","11:10","11:20"],
+    "blocked": [32,28,40,51,46,70,22],
+    "allowed": [15,12,10,18,16,20,11]
+  },
+  "topApps": [
+    {"name":"AMAZON","bytes":41},
+    {"name":"SSL","bytes":19},
+    {"name":"GOOGLE","bytes":9},
+    {"name":"FACEBOOK","bytes":8},
+    {"name":"Other","bytes":23}
+  ]
+}
