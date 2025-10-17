@@ -1,6 +1,5 @@
 #!/bin/bash
 # start.sh - One Step Security System Launcher
-# Windows .exe처럼 클릭 한 번으로 모든 것을 설치하고 실행
 
 # 에러 발생 시에도 계속 진행 (권한 문제 등)
 # set -e 제거 - 일부 명령어 실패해도 계속 진행
