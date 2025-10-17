@@ -1,0 +1,36 @@
+{
+  "check_interval": 60,
+  "alert_threshold": 5,
+  "time_window": 300,
+  "auto_block": true,
+  "severity_weight": {
+    "1": 10,
+    "2": 5,
+    "3": 2
+  },
+  "whitelist": [
+    "127.0.0.1",
+    "localhost",
+    "192.168.1.1"
+  ],
+  "rules": [
+    {
+      "name": "High Alert Count",
+      "condition": "count >= 5",
+      "action": "block",
+      "enabled": true
+    },
+    {
+      "name": "High Risk Score",
+      "condition": "score >= 20",
+      "action": "block",
+      "enabled": true
+    },
+    {
+      "name": "Multiple Attack Signatures",
+      "condition": "signatures >= 3",
+      "action": "block",
+      "enabled": true
+    }
+  ]
+}
