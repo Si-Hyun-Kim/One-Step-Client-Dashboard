@@ -1,7 +1,8 @@
 #!/bin/bash
 # start.sh - One Step Security System Launcher
 
-set -e  # 에러 발생 시 중단
+# 에러 발생 시에도 계속 진행 (권한 문제 등)
+# set -e 제거 - 일부 명령어 실패해도 계속 진행
 
 # 색상 정의
 RED='\033[0;31m'
@@ -50,18 +51,17 @@ for script in "${SCRIPT_FILES[@]}"; do
     if [ -f "$script" ]; then
         if [ ! -x "$script" ]; then
             echo -e "  ${YELLOW}⚠${NC} ${script} - No execute permission, adding..."
-            chmod +x "$script" 2>/dev/null
-            if [ -x "$script" ]; then
+            if chmod +x "$script" 2>/dev/null; then
                 echo -e "  ${GREEN}✓${NC} ${script} - Permission granted"
                 ((FIXED_COUNT++))
             else
-                echo -e "  ${RED}✗${NC} ${script} - Failed to grant permission"
+                echo -e "  ${RED}✗${NC} ${script} - Failed (read-only filesystem?)"
             fi
         else
             echo -e "  ${GREEN}✓${NC} ${script} - Execute permission OK"
         fi
     else
-        echo -e "  ${YELLOW}⊝${NC} ${script} - File not found (will be created later)"
+        echo -e "  ${YELLOW}⊝${NC} ${script} - File not found (OK, will be created later)"
     fi
 done
 
