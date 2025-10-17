@@ -409,7 +409,7 @@ app.get("/settings", (_req, res) => {
   res.render("settings", { active: "settings", settings });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3100;
 app.listen(PORT, async () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
   
