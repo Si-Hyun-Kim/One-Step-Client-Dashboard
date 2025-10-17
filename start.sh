@@ -1,6 +1,5 @@
 #!/bin/bash
 # start.sh - One Step Security System Launcher
-# Windows .exe처럼 클릭 한 번으로 모든 것을 설치하고 실행
 
 set -e  # 에러 발생 시 중단
 
@@ -14,16 +13,14 @@ NC='\033[0m' # No Color
 
 # 로고
 echo -e "${CYAN}"
-cat << "EOF"
-╔═══════════════════════════════════════════════╗
-║                                               ║
-║   🛡️  ONE STEP SECURITY SYSTEM 🛡️            ║
-║                                               ║
-║   Automated Security Dashboard & Agent       ║
-║   Version 2.0.0                              ║
-║                                               ║
-╚═══════════════════════════════════════════════╝
-EOF
+echo "========================================"
+echo ""
+echo "    ONE STEP SECURITY SYSTEM"
+echo ""
+echo "  Automated Security Dashboard & Agent"
+echo "          Version 2.0.0"
+echo ""
+echo "========================================"
 echo -e "${NC}"
 
 # 스크립트 디렉토리
@@ -34,7 +31,7 @@ cd "$SCRIPT_DIR"
 # 0. 스크립트 파일 실행 권한 확인 및 부여
 # ============================================
 
-echo -e "${BLUE}[0/9] 스크립트 권한 확인 중...${NC}"
+echo -e "${BLUE}[0/9] Checking script permissions...${NC}"
 
 # 확인할 스크립트 파일 목록
 SCRIPT_FILES=(
@@ -52,24 +49,24 @@ FIXED_COUNT=0
 for script in "${SCRIPT_FILES[@]}"; do
     if [ -f "$script" ]; then
         if [ ! -x "$script" ]; then
-            echo -e "  ${YELLOW}⚠${NC} ${script} - 실행 권한 없음, 권한 부여 중..."
-            chmod +x "$script"
+            echo -e "  ${YELLOW}⚠${NC} ${script} - No execute permission, adding..."
+            chmod +x "$script" 2>/dev/null
             if [ -x "$script" ]; then
-                echo -e "  ${GREEN}✓${NC} ${script} - 권한 부여 완료"
+                echo -e "  ${GREEN}✓${NC} ${script} - Permission granted"
                 ((FIXED_COUNT++))
             else
-                echo -e "  ${RED}✗${NC} ${script} - 권한 부여 실패"
+                echo -e "  ${RED}✗${NC} ${script} - Failed to grant permission"
             fi
         else
-            echo -e "  ${GREEN}✓${NC} ${script} - 실행 권한 있음"
+            echo -e "  ${GREEN}✓${NC} ${script} - Execute permission OK"
         fi
     else
-        echo -e "  ${YELLOW}⊝${NC} ${script} - 파일 없음 (나중에 생성됨)"
+        echo -e "  ${YELLOW}⊝${NC} ${script} - File not found (will be created later)"
     fi
 done
 
 if [ $FIXED_COUNT -gt 0 ]; then
-    echo -e "  ${CYAN}💡 ${FIXED_COUNT}개 파일의 실행 권한을 자동으로 부여했습니다.${NC}"
+    echo -e "  ${CYAN}💡 Automatically granted execute permission to ${FIXED_COUNT} files${NC}"
 fi
 
 echo ""
