@@ -1,0 +1,392 @@
+<!-- views/dashboard.ejs -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard • One Step FW</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="/common.js" defer></script>
+  <script src="/charts.js" defer></script>
+</head>
+<body>
+  <%- include('partials/_sidebar', { active }) %>
+
+  <div class="page">
+    <%- include('partials/_topbar', { pageTitle: 'Dashboard (Live)', active }) %>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div style="background: var(--accent-3); color: white; padding: 12px 20px; text-align: center;">
+      ⚠️ <%= error %>
+    </div>
+    <% } %>
+
+    <main class="content">
+      <!-- KPI 카드 -->
+      <%- include('partials/_kpi', { summary }) %>
+
+      <!-- 차트 -->
+      <section class="grid two">
+        <div class="card">
+          <div class="card-head">
+            <h3>Traffic Trend (Live)</h3>
+            <span class="muted" id="lastUpdate">Last update: now</span>
+          </div>
+          <canvas id="trendChart" height="120"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Top Applications (by alerts)</h3>
+          </div>
+          <canvas id="appsChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <!-- 최근 알림 테이블 -->
+      <section class="card">
+        <div class="card-head">
+          <h3>Recent Alerts (Real-time)</h3>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <!-- Action 필터 -->
+            <label class="muted" style="font-size:12px;">Action</label>
+            <div class="select" id="actionSelect">
+              <button type="button" class="select-trigger">
+                <span class="select-value">ALL</span><span class="select-caret">▾</span>
+              </button>
+              <ul class="select-list" role="listbox">
+                <li class="option active" data-value="">ALL</li>
+                <li class="option" data-value="BLOCK">BLOCK</li>
+                <li class="option" data-value="ALLOW">ALLOW</li>
+              </ul>
+            </div>
+            <select id="actionFilter" class="visually-hidden" aria-hidden="true" tabindex="-1">
+              <option value="">ALL</option>
+              <option value="BLOCK">BLOCK</option>
+              <option value="ALLOW">ALLOW</option>
+            </select>
+
+            <!-- Rule 검색 -->
+            <label class="muted" style="font-size:12px;">Rule</label>
+            <input id="ruleFilter" class="input" type="text" placeholder="Search rule…" style="width:160px;">
+
+            <!-- 카운트 & More -->
+            <span class="muted" id="alertsCount"><%= alerts.length %> items</span>
+            <a href="/alerts" class="btn small">More</a>
+            
+            <!-- 실시간 상태 -->
+            <span id="liveStatus" style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--accent-2);">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent-2);animation:pulse 2s infinite;"></span>
+              Live
+            </span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th id="thTime" style="cursor:pointer;">Time <span id="sortIcon">▼</span></th>
+                <th>Src IP</th>
+                <th>Dst IP</th>
+                <th>Action</th>
+                <th>Severity</th>
+                <th>Rule</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alertsTableBody">
+              <% for (const a of alerts) { 
+                const sevClass = {
+                  LOW: 'sev-low', MEDIUM: 'sev-medium', HIGH: 'sev-high', CRITICAL: 'sev-critical'
+                }[a.severity] || '';
+              %>
+                <tr 
+                  data-sev="<%= a.severity %>" 
+                  data-action="<%= a.action %>" 
+                  data-rule="<%= a.rule %>" 
+                  data-ts="<%= Date.parse(a.timestamp) %>"
+                >
+                  <td><%= a.id %></td>
+                  <td><%= new Date(a.timestamp).toLocaleString() %></td>
+                  <td><%= a.source_ip %></td>
+                  <td><%= a.dest_ip %></td>
+                  <td style="font-weight:700; color:<%= a.action==='BLOCK' ? 'var(--accent-3)' : 'var(--accent-2)' %>;"><%= a.action %></td>
+                  <td>
+                    <span class="sev-dot <%= sevClass %>" style="margin-right:8px;"></span>
+                    <%= a.severity %>
+                  </td>
+                  <td><%= a.rule %></td>
+                  <td>
+                    <button class="btn small ghost btn-block-ip" data-ip="<%= a.source_ip %>">Block IP</button>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <style>
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+
+  <script>
+    // 서버 데이터
+    const SUMMARY    = <%- JSON.stringify(summary) %>;
+    const ALL_ALERTS = <%- JSON.stringify(alerts) %>;
+
+    // 헬퍼
+    const $  = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+    // EventSource for real-time updates
+    let eventSource = null;
+    let currentAlerts = [...ALL_ALERTS];
+
+    function startLiveUpdates() {
+      if (eventSource) return;
+
+      eventSource = new EventSource('/api/stream');
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.error) {
+            console.error('Stream error:', data.error);
+            return;
+          }
+
+          // 새 알림 추가
+          if (data.alerts && data.alerts.length > 0) {
+            const newAlerts = data.alerts.map(a => ({
+              id: `AL-${Date.parse(a.timestamp)}`,
+              timestamp: a.timestamp,
+              source_ip: a.source_ip,
+              dest_ip: a.dest_ip,
+              action: Math.random() > 0.3 ? 'BLOCK' : 'ALLOW',
+              severity: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'][a.severity - 1] || 'MEDIUM',
+              rule: a.signature
+            }));
+
+            // 중복 제거
+            newAlerts.forEach(alert => {
+              const exists = currentAlerts.some(a => a.id === alert.id);
+              if (!exists) {
+                currentAlerts.unshift(alert);
+              }
+            });
+
+            // 최근 100개만 유지
+            if (currentAlerts.length > 100) {
+              currentAlerts = currentAlerts.slice(0, 100);
+            }
+
+            updateAlertsTable();
+            updateLastUpdateTime();
+          }
+        } catch (e) {
+          console.error('Parse error:', e);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        $('#liveStatus').innerHTML = '<span style="color:var(--accent-3);">● Disconnected</span>';
+        
+        // 재연결 시도
+        setTimeout(() => {
+          eventSource.close();
+          eventSource = null;
+          startLiveUpdates();
+        }, 5000);
+      };
+
+      $('#liveStatus').innerHTML = '<span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent-2);animation:pulse 2s infinite;"></span>Live</span>';
+    }
+
+    function updateAlertsTable() {
+      const tbody = $('#alertsTableBody');
+      if (!tbody) return;
+
+      // 필터 적용
+      const actionFilter = $('#actionFilter')?.value || '';
+      const ruleFilter = ($('#ruleFilter')?.value || '').toLowerCase();
+
+      let filtered = currentAlerts.filter(a => {
+        const okAction = !actionFilter || a.action === actionFilter;
+        const okRule = !ruleFilter || (a.rule || '').toLowerCase().includes(ruleFilter);
+        return okAction && okRule;
+      });
+
+      // 정렬 (최신순)
+      filtered.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+
+      // 테이블 업데이트
+      tbody.innerHTML = filtered.map(a => {
+        const sevClass = {
+          LOW: 'sev-low', MEDIUM: 'sev-medium', HIGH: 'sev-high', CRITICAL: 'sev-critical'
+        }[a.severity] || '';
+
+        return `
+          <tr data-sev="${a.severity}" data-action="${a.action}" data-rule="${a.rule}" data-ts="${Date.parse(a.timestamp)}">
+            <td>${a.id}</td>
+            <td>${new Date(a.timestamp).toLocaleString()}</td>
+            <td>${a.source_ip}</td>
+            <td>${a.dest_ip}</td>
+            <td style="font-weight:700; color:${a.action === 'BLOCK' ? 'var(--accent-3)' : 'var(--accent-2)'};">${a.action}</td>
+            <td>
+              <span class="sev-dot ${sevClass}" style="margin-right:8px;"></span>
+              ${a.severity}
+            </td>
+            <td>${a.rule}</td>
+            <td>
+              <button class="btn small ghost btn-block-ip" data-ip="${a.source_ip}">Block IP</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      $('#alertsCount').textContent = `${filtered.length} items`;
+    }
+
+    function updateLastUpdateTime() {
+      const now = new Date().toLocaleTimeString();
+      const el = $('#lastUpdate');
+      if (el) el.textContent = `Last update: ${now}`;
+    }
+
+    // IP 차단 기능
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-block-ip');
+      if (!btn) return;
+
+      const ip = btn.dataset.ip;
+      if (!ip) return;
+
+      if (!confirm(`Are you sure you want to block ${ip}?`)) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Blocking...';
+
+      try {
+        const response = await fetch('/api/block-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            ip, 
+            reason: 'Blocked from dashboard' 
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          btn.textContent = '✓ Blocked';
+          btn.style.background = 'var(--accent-3)';
+          btn.style.color = 'white';
+          alert(`Successfully blocked ${ip}`);
+        } else {
+          throw new Error(data.error || 'Failed to block IP');
+        }
+      } catch (error) {
+        console.error('Block error:', error);
+        alert(`Failed to block ${ip}: ${error.message}`);
+        btn.textContent = 'Block IP';
+        btn.disabled = false;
+      }
+    });
+
+    // Action 커스텀 셀렉트
+    function initActionSelect() {
+      const wrap   = $('#actionSelect');
+      const button = wrap?.querySelector('.select-trigger');
+      const list   = wrap?.querySelector('.select-list');
+      const label  = wrap?.querySelector('.select-value');
+      const hidden = $('#actionFilter');
+      if (!wrap || !button || !list || !label || !hidden) return;
+
+      const open  = () => { wrap.classList.add('open');  button.setAttribute('aria-expanded','true'); };
+      const close = () => { wrap.classList.remove('open'); button.setAttribute('aria-expanded','false'); };
+
+      wrap.addEventListener('click', (e) => {
+        const trig = e.target.closest('.select-trigger');
+        if (!trig) return;
+        e.stopPropagation();
+        wrap.classList.contains('open') ? close() : open();
+      });
+
+      list.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const li = e.target.closest('.option'); 
+        if (!li) return;
+        
+        list.querySelectorAll('.option').forEach(o => o.classList.toggle('active', o === li));
+        const val = li.dataset.value ?? '';
+        label.textContent = val || 'ALL';
+        hidden.value = val;
+        updateAlertsTable();
+        close();
+      });
+
+      document.addEventListener('click', (e) => { 
+        if (!wrap.contains(e.target)) close(); 
+      });
+    }
+
+    // Rule 필터
+    function initRuleFilter() {
+      const input = $('#ruleFilter');
+      if (!input) return;
+
+      input.addEventListener('input', () => {
+        updateAlertsTable();
+      });
+    }
+
+    // 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      // 테마/레이아웃
+      if (window.ChartTheme) {
+        ChartTheme.initThemeFromStorage();
+        ChartTheme.bindThemeToggle();
+        ChartTheme.applyChartTheme();
+        ChartTheme.observeLayout();
+        ChartTheme.observeCardsForResize();
+      } else if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+
+      // 차트 초기 렌더
+      ChartBuilder.buildTrendChart(SUMMARY);
+      ChartBuilder.buildAppsChart(SUMMARY.topApps);
+      ChartBuilder.applyChartTheme();
+
+      // UI 바인딩
+      initActionSelect();
+      initRuleFilter();
+
+      // 실시간 업데이트 시작
+      startLiveUpdates();
+
+      // Refresh 버튼
+      $('#refreshBtn')?.addEventListener('click', () => window.location.reload());
+    });
+
+    // 페이지 종료 시 정리
+    window.addEventListener('beforeunload', () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    });
+  </script>
+
+</body>
+</html>

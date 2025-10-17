@@ -1,0 +1,206 @@
+<!-- views/reports.ejs -->
+
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reports • One Step FW</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <%- include('partials/_sidebar', { active }) %>
+
+  <div class="page">
+    <%- include('partials/_topbar') %>
+
+    <main class="content">
+      <section class="grid two">
+        <!-- Saved Reports -->
+        <div class="card">
+          <div class="card-head">
+            <h3>Saved Reports</h3>
+            <span class="muted"><%= reports.length %> items</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Title</th>
+                  <th>Period</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% for (const r of reports) { %>
+                  <tr>
+                    <td><%= r.id %></td>
+                    <td><%= r.title %></td>
+                    <td><%= r.period %></td>
+                    <td>
+                      <button type="button" class="btn small ghost btn-view" data-id="1">View</button>
+                      <button type="button" class="btn small btn-accent btn-export" data-id="1">Export</button>
+                      <!-- 데모: id=1로 연결. 실제로는 r.id에 매핑되는 /reports/:id 가 있어야 함 -->
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- New Report (Builder) -->
+        <div class="card">
+          <div class="card-head">
+            <h3>New Report</h3>
+          </div>
+
+          <form id="newReportForm" class="form stack" onsubmit="return false;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label class="muted" for="reportType">Report Type</label>
+                <select id="reportType" style="width:100%;">
+                  <option value="traffic">Traffic Summary</option>
+                  <option value="top-apps">Top Applications</option>
+                  <option value="top-hosts">Top Talkers</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="muted" for="granularity">Granularity</label>
+                <select id="granularity" style="width:100%;">
+                  <option value="hour">Hourly</option>
+                  <option value="day">Daily</option>
+                  <option value="week">Weekly</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="muted" for="fromDate">From</label>
+                <input id="fromDate" type="date" style="width:100%;" />
+              </div>
+
+              <div>
+                <label class="muted" for="toDate">To</label>
+                <input id="toDate" type="date" style="width:100%;" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button type="button" class="btn btn-accent" id="btnGenerate">Generate (Preview)</button>
+              <button type="button" class="btn ghost" id="btnExportNew">Export CSV</button>
+            </div>
+            <p class="muted" style="margin-top:8px;">* Preview는 모달로 표시됩니다. Export는 CSV 샘플을 생성합니다.</p>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="reportModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel card">
+      <div class="card-head">
+        <h3 id="modalTitle">Report</h3>
+        <button type="button" class="ghost" id="modalClose">✕</button>
+      </div>
+      <div class="table-wrap" id="modalBody"><!-- JS로 렌더 --></div>
+    </div>
+  </div>
+
+  <!-- 기능 스크립트 -->
+  <script src="/reports.js" defer></script>
+  <script>
+    // New Report (데모 동작: 미리보기/CSV 생성)
+    document.addEventListener('DOMContentLoaded', () => {
+      const byId = (id) => document.getElementById(id);
+
+      byId('btnGenerate')?.addEventListener('click', () => {
+        const type = byId('reportType').value;
+        const gran = byId('granularity').value;
+        const from = byId('fromDate').value || '(auto)';
+        const to   = byId('toDate').value   || '(auto)';
+
+        // 데모용 데이터 생성
+        const data = fakeReportData(type, gran);
+        openPreviewModal(`[Preview] ${labelOf(type)} (${from} ~ ${to})`, data);
+      });
+
+      byId('btnExportNew')?.addEventListener('click', () => {
+        const type = byId('reportType').value;
+        const gran = byId('granularity').value;
+        const data = fakeReportData(type, gran);
+        const csv = rowsToCSV(data);
+        downloadCSV(csv, `report_${type}_${gran}.csv`);
+      });
+
+      function labelOf(type) {
+        return { 'traffic':'Traffic Summary', 'top-apps':'Top Applications', 'top-hosts':'Top Talkers' }[type] || type;
+      }
+
+      function fakeReportData(type, gran) {
+        if (type === 'traffic') {
+          return [
+            { bucket: '00', blocked: 120, allowed: 980 },
+            { bucket: '01', blocked: 95,  allowed: 1021 },
+            { bucket: '02', blocked: 88,  allowed: 1103 },
+          ];
+        }
+        if (type === 'top-apps') {
+          return [
+            { app: 'YouTube', bytes: 123456789 },
+            { app: 'Slack',   bytes: 45678901  },
+            { app: 'Zoom',    bytes: 23456789  },
+          ];
+        }
+        return [
+          { host: '192.168.0.2', bytes: 4.1, blocked: 3, allowed: 12 },
+          { host: '192.168.0.5', bytes: 3.2, blocked: 0, allowed: 25 },
+          { host: '192.168.0.9', bytes: 2.7, blocked: 5, allowed: 9  }
+        ];
+      }
+
+      function rowsToCSV(rows) {
+        if (!rows?.length) return '';
+        const headers = Object.keys(rows[0]);
+        const lines = [headers.join(','), ...rows.map(r => headers.map(h => String(r[h]).replace(/"/g,'""')).join(','))];
+        return '\uFEFF' + lines.join('\n');
+      }
+
+      function downloadCSV(csv, filename) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      function openPreviewModal(title, rows) {
+        const modal = document.getElementById('reportModal');
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBody').innerHTML = rows?.length
+          ? toTableHTML(rows) : '<p class="muted">No data</p>';
+        modal.setAttribute('aria-hidden','false');
+        modal.classList.add('open');
+      }
+
+      function toTableHTML(rows) {
+        const headers = Object.keys(rows[0]);
+        const thead = `<thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>`;
+        const tbody = `<tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${esc(String(r[h]))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+        return `<div class="table-wrap"><table>${thead}${tbody}</table></div>`;
+      }
+
+      function esc(s) {
+        return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+    });
+
+    document.getElementById("themeToggle")?.addEventListener("click",()=>{const r=document.documentElement;r.classList.toggle("dark");localStorage.setItem("theme",r.classList.contains("dark")?"dark":"light")});
+    if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+  </script>
+</body>
+</html>

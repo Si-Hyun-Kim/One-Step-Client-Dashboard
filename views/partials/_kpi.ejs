@@ -1,0 +1,23 @@
+<!-- views/partials/_kpi.ejs -->
+<section class="kpis">
+  <div class="card kpi">
+    <div class="kpi-title">Total Alerts</div>
+    <div class="kpi-value"><%= summary.kpis.totalAlerts.toLocaleString() %></div>
+    <div class="kpi-sub">지난 1시간</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-title">Blocked</div>
+    <div class="kpi-value accent-red"><%= summary.kpis.blocked.toLocaleString() %></div>
+    <div class="kpi-sub">차단 이벤트</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-title">Allowed</div>
+    <div class="kpi-value accent-green"><%= summary.kpis.allowed.toLocaleString() %></div>
+    <div class="kpi-sub">허용 이벤트</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-title">Active Hosts</div>
+    <div class="kpi-value"><%= summary.kpis.activeHosts %></div>
+    <div class="kpi-sub">현재</div>
+  </div>
+</section>

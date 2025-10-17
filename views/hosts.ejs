@@ -1,0 +1,35 @@
+<!-- views/hosts.ejs -->
+
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hosts • One Step FW</title><link rel="stylesheet" href="/styles.css"/>
+</head><body>
+  <%- include('partials/_sidebar', { active }) %>
+  <div class="page">
+    <%- include('partials/_topbar') %>
+    <main class="content">
+      <section class="kpis">
+        <div class="card kpi"><div class="kpi-title">Known Devices</div><div class="kpi-value"><%= hosts.length %></div></div>
+        <div class="card kpi"><div class="kpi-title">Blocked Events</div><div class="kpi-value accent-red"><%= hosts.reduce((a,h)=>a+h.blocked,0) %></div></div>
+        <div class="card kpi"><div class="kpi-title">Allowed Events</div><div class="kpi-value accent-green"><%= hosts.reduce((a,h)=>a+h.allowed,0) %></div></div>
+        <div class="card kpi"><div class="kpi-title">Top Bytes (GB)</div><div class="kpi-value"><%= Math.max(...hosts.map(h=>h.bytes)) %></div></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h3>Hosts</h3></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>IP</th><th>Bytes (GB)</th><th>Blocked</th><th>Allowed</th></tr></thead>
+            <tbody>
+              <% for (const h of hosts) { %>
+                <tr><td><%= h.ip %></td><td><%= h.bytes %></td><td><%= h.blocked %></td><td><%= h.allowed %></td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    document.getElementById("themeToggle")?.addEventListener("click",()=>{const r=document.documentElement;r.classList.toggle("dark");localStorage.setItem("theme",r.classList.contains("dark")?"dark":"light")});
+    if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+  </script>
+</body></html>

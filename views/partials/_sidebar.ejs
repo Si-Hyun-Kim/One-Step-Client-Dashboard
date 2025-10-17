@@ -1,0 +1,20 @@
+<!-- views/partials/_sidebar.ejs -->
+<aside class="sidebar">
+  <a href="/dashboard" class="brand">🛡️ ONE STEP</a>
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <nav>
+    <a class="<%= active==='dashboard'?'active':'' %>" href="/dashboard">Dashboard</a>
+    <a class="<%= active==='policies'?'active':'' %>" href="/policies">Policies</a>
+    <a class="<%= active==='hosts'?'active':'' %>" href="/hosts">Hosts</a>
+    <a class="<%= active==='apps'?'active':'' %>" href="/apps">Apps</a>
+    <a class="<%= active==='alerts'?'active':'' %>" href="/alerts">Alerts</a>
+    <a class="<%= active==='reports'?'active':'' %>" href="/reports">Reports</a>
+    <a class="<%= active==='settings'?'active':'' %>" href="/settings">Settings</a>
+  </nav>
+  <div class="sidebar-footer">
+    <button id="themeToggle" class="ghost">Toggle Theme</button>
+  </div>
+  <script>
+    function toggleSidebar(){ document.querySelector('.sidebar').classList.toggle('open'); }
+  </script>
+</aside>

@@ -1,0 +1,10 @@
+{
+  "__comment" : ".vscode/settings.json",
+  "npm.enableRunFromFolder": true,
+  "files.associations": {
+    "*.ejs": "html"
+  },
+  "emmet.includeLanguages": {
+    "ejs": "html"
+  }
+}

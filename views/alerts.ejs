@@ -1,0 +1,42 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Alerts • One Step FW</title>
+<link rel="stylesheet" href="/styles.css"/>
+</head><body>
+  <%- include('partials/_sidebar', { active }) %>
+  <div class="page">
+    <%- include('partials/_topbar', { pageTitle: 'Alerts', active }) %>
+    <main class="content">
+      <section class="card">
+        <div class="card-head"><h3>All Alerts</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Time</th><th>Src IP</th><th>Dst IP</th>
+              <th>Action</th><th>Severity</th><th>Rule</th>
+            </tr></thead>
+            <tbody>
+              <% for (const a of alerts) { 
+                   const sevClass = {LOW:'sev-low',MEDIUM:'sev-medium',HIGH:'sev-high',CRITICAL:'sev-critical'}[a.severity] || '';
+              %>
+              <tr>
+                <td><%= a.id %></td>
+                <td><%= new Date(a.timestamp).toLocaleString() %></td>
+                <td><%= a.source_ip %></td>
+                <td><%= a.dest_ip %></td>
+                <td style="font-weight:700; color:<%= a.action==='BLOCK' ? 'var(--accent-3)' : 'var(--accent-2)' %>;"><%= a.action %></td>
+                <td><span class="sev-dot <%= sevClass %>" style="margin-right:8px;"></span><%= a.severity %></td>
+                <td><%= a.rule %></td>
+              </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    document.getElementById("themeToggle")?.addEventListener("click",()=>{const r=document.documentElement;r.classList.toggle("dark");localStorage.setItem("theme",r.classList.contains("dark")?"dark":"light")});
+    if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+  </script>
+</body></html>

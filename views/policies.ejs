@@ -1,0 +1,39 @@
+<!-- views/policies.ejs -->
+
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Policies • One Step FW</title><link rel="stylesheet" href="/styles.css"/>
+</head><body>
+  <%- include('partials/_sidebar', { active }) %>
+  <div class="page">
+    <%- include('partials/_topbar') %>
+    <main class="content">
+      <section class="card">
+        <div class="card-head"><h3>Policy Overview</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Policy</th><th>Apps</th><th>Sessions</th><th>Traffic(%)</th></tr></thead>
+            <tbody>
+              <% for (const p of policies) { %>
+                <tr>
+                  <td><%= p.name %></td>
+                  <td><%= p.apps %></td>
+                  <td><%= p.sessions %></td>
+                  <td><%= p.trafficPct %></td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="grid two">
+        <div class="card"><h3>Rules</h3><p class="muted">여기에 정책 규칙 편집 UI 예정</p></div>
+        <div class="card"><h3>Assignments</h3><p class="muted">네트워크/그룹에 정책 적용</p></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    document.getElementById("themeToggle")?.addEventListener("click",()=>{const r=document.documentElement;r.classList.toggle("dark");localStorage.setItem("theme",r.classList.contains("dark")?"dark":"light")});
+    if(localStorage.getItem("theme")==="dark") document.documentElement.classList.add("dark");
+  </script>
+</body></html>

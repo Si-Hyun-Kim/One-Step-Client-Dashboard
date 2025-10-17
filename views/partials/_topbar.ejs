@@ -1,0 +1,33 @@
+<!-- views/partials/_topbar.ejs -->
+<header class="topbar">
+  <h1><%= typeof pageTitle !== 'undefined' ? pageTitle : (active.charAt(0).toUpperCase() + active.slice(1)) %></h1>
+
+  <div class="top-actions">
+    <% if (active === 'dashboard') { %>
+  <!-- 커스텀 드롭다운 (UI) -->
+    <div class="select" id="sevSelect">
+    <button type="button" class="select-trigger">
+      <span class="select-value">Severity: ALL</span>
+      <span class="select-caret">▾</span>
+    </button>
+    <ul class="select-list" role="listbox">
+      <li class="option active" data-value=""><span class="sev-dot"></span>Severity: ALL</li>
+      <li class="option" data-value="LOW"><span class="sev-dot sev-low"></span>Severity: LOW</li>
+      <li class="option" data-value="MEDIUM"><span class="sev-dot sev-medium"></span>Severity: MEDIUM</li>
+      <li class="option" data-value="HIGH"><span class="sev-dot sev-high"></span>Severity: HIGH</li>
+      <li class="option" data-value="CRITICAL"><span class="sev-dot sev-critical"></span>Severity: CRITICAL</li>
+    </ul>
+  </div>
+  <select id="severity" class="visually-hidden" aria-hidden="true" tabindex="-1">
+    <option value="">Severity: ALL</option>
+    <option value="LOW">LOW</option>
+    <option value="MEDIUM">MEDIUM</option>
+    <option value="HIGH">HIGH</option>
+    <option value="CRITICAL">CRITICAL</option>
+  </select>
+
+  <% } %>
+
+    <button id="refreshBtn" type="button" class="refresh" aria-label="Refresh">Refresh</button>
+  </div>
+</header>
