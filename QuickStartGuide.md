@@ -476,5 +476,3 @@ chmod +x *.sh
 4. **보안**: iptables 규칙 주기적으로 확인
 
 ---
-
-**Windows .exe처럼 간단하죠?** 😊
