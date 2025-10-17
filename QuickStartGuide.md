@@ -1,8 +1,24 @@
 # 🚀 One Step Security System - 빠른 시작
 
-## Windows .exe처럼 간단하게!
-
 단 **하나의 명령어**로 모든 것을 설치하고 실행합니다.
+
+---
+
+## ⚡ 초간단 시작 (3초!)
+
+```bash
+cd ~/onestep-dashboard
+./start.sh
+```
+
+**끝!** 🎉
+
+> `start.sh`가 자동으로:
+> - ✅ 모든 스크립트 파일에 실행 권한 자동 부여
+> - ✅ Python, Node.js 설치 확인 및 설치
+> - ✅ MCP 모듈 설치
+> - ✅ Suricata 권한 자동 설정
+> - ✅ 모든 서비스 자동 시작
 
 ---
 
@@ -31,24 +47,20 @@ onestep-dashboard/
 
 ## ⚡ 빠른 시작 (3단계)
 
-### 1. 파일 다운로드/생성
+### 1. 저장소 클론 또는 다운로드
 
 ```bash
-cd ~/onestep-dashboard
+# GitHub에서 클론
+git clone https://github.com/yourusername/onestep-dashboard.git
+cd onestep-dashboard
 
-# 실행 스크립트들 생성
-# - start.sh
-# - stop.sh
-# - restart.sh
-# - status.sh
-# (위의 코드 복사하여 생성)
+# 또는 ZIP 다운로드 후 압축 해제
 ```
 
-### 2. 실행 권한 부여
+### 2. start.sh 실행 권한 부여 (최초 1회만)
 
 ```bash
-chmod +x *.sh
-chmod +x agent/*.py
+chmod +x start.sh
 ```
 
 ### 3. 실행!
@@ -59,9 +71,23 @@ chmod +x agent/*.py
 
 **끝!** 🎉
 
+> **💡 참고**: `start.sh`가 다른 모든 스크립트 파일(`stop.sh`, `restart.sh` 등)의 실행 권한을 자동으로 확인하고 부여하므로, `start.sh`에만 권한을 주면 됩니다!
+
 ---
 
 ## 🎯 start.sh가 자동으로 하는 일
+
+### ✅ 0단계: 스크립트 권한 자동 설정 (NEW!)
+**자동으로 모든 스크립트 파일의 실행 권한 확인 및 부여:**
+- `stop.sh`
+- `restart.sh`
+- `status.sh`
+- `fix-permissions.sh`
+- `agent/setup.sh`
+- `agent/check.sh`
+- `agent/mcp_agent.py`
+
+→ **이제 `start.sh`에만 권한을 주면 나머지는 자동!**
 
 ### ✅ 1단계: 시스템 검사
 - Python 3 확인
@@ -72,8 +98,8 @@ chmod +x agent/*.py
 ### ✅ 2단계: 패키지 자동 설치
 없는 패키지가 있으면 자동 설치:
 - `python3`
-- `nodejs`
-- `npm`
+- `python3-pip`
+- `nodejs` (nvm 방식)
 
 ### ✅ 3단계: Python 의존성
 - `mcp` 모듈 자동 설치
@@ -91,14 +117,19 @@ chmod +x agent/*.py
 - `data/`
 - `logs/`
 
-### ✅ 6단계: 설정 파일 생성
+### ✅ 6단계: Suricata 권한 자동 설정 (NEW!)
+- eve.json 파일 권한 자동 설정 (644)
+- 사용자를 adm 그룹에 자동 추가
+- Suricata 서비스 시작 확인
+
+### ✅ 7단계: 설정 파일 생성
 없을 때만 자동 생성:
 - `agent/agent_config.json`
 - `agent/logs/README.md`
 - `agent/rules/README.md`
 - `.gitkeep` 파일들
 
-### ✅ 7단계: 서비스 시작
+### ✅ 8단계: 서비스 시작
 자동으로 백그라운드 실행:
 1. **MCP Server** (Suricata 로그 읽기)
 2. **MCP Agent** (자동 방어)
@@ -110,37 +141,55 @@ chmod +x agent/*.py
 
 ```
 ╔═══════════════════════════════════════════════╗
-║                                               ║
 ║   🛡️  ONE STEP SECURITY SYSTEM 🛡️            ║
-║                                               ║
-║   Automated Security Dashboard & Agent       ║
-║   Version 2.0.0                              ║
-║                                               ║
 ╚═══════════════════════════════════════════════╝
 
-[1/7] 시스템 검사 중...
+[0/9] 스크립트 권한 확인 중...
+  ⚠ stop.sh - 실행 권한 없음, 권한 부여 중...
+  ✓ stop.sh - 권한 부여 완료
+  ⚠ restart.sh - 실행 권한 없음, 권한 부여 중...
+  ✓ restart.sh - 권한 부여 완료
+  ⚠ status.sh - 실행 권한 없음, 권한 부여 중...
+  ✓ status.sh - 권한 부여 완료
+  💡 3개 파일의 실행 권한을 자동으로 부여했습니다.
+
+[1/9] 시스템 검사 중...
   ✓ python3
+  ✓ pip3
   ✓ node
   ✓ npm
 
-[2/7] 모든 필수 패키지가 설치되어 있습니다.
+[2/9] Python 환경 확인 중...
+  ✓ Python: 3.10.12
+  ✓ pip3: 22.0.2
 
-[3/7] Python 의존성 확인 중...
+[3/9] Node.js 환경 확인 중...
+  ✓ Node.js: v22.20.0
+  ✓ npm: 10.9.3
+
+[4/9] Python 의존성 확인 중...
   ✓ mcp module
 
-[4/7] Node.js 의존성 확인 중...
+[5/9] Node.js 의존성 확인 중...
   ✓ node_modules 존재
 
-[5/7] 디렉토리 구조 생성 중...
+[6/9] 디렉토리 구조 생성 중...
   ✓ agent/ 확인
   ✓ data/ 확인
+  ✓ logs/ 확인
 
-[6/7] 설정 파일 생성 중...
+[6.5/9] Suricata 설정 확인 중...
+  ✓ Suricata 설치됨
+  ✓ eve.json 파일 존재
+  ⚠ eve.json 읽기 권한 없음. 권한 설정 중...
+  ✓ eve.json 권한 설정 완료 (644)
+  ✓ Suricata 실행 중
+
+[7/9] 설정 파일 생성 중...
   ✓ agent_config.json 존재
   ✓ logs/README.md 존재
-  ✓ rules/README.md 존재
 
-[7/7] 서비스 시작 중...
+[8/9] 서비스 시작 중...
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -160,30 +209,7 @@ chmod +x agent/*.py
 
 ✅ One Step Security System 실행 완료!
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 서비스 상태
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  MCP Server    : ● Running (PID: 12345)
-  MCP Agent     : ● Running (PID: 12346)
-  Web Dashboard : ● Running (PID: 12347)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🌐 접속 정보
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Dashboard URL : http://localhost:3100
-  Agent Logs    : tail -f logs/mcp_agent.log
-  Server Logs   : tail -f logs/mcp_server.log
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚙️  제어 명령어
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  정지       : ./stop.sh
-  재시작     : ./restart.sh
-  상태 확인  : ./status.sh
-
-💡 브라우저에서 http://localhost:3100 을 열어보세요!
-
-💡 종료하려면: Ctrl+C 또는 ./stop.sh
+  Dashboard: http://localhost:3100
 ```
 
 ---

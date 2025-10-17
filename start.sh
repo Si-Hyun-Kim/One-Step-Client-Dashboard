@@ -30,7 +30,49 @@ echo -e "${NC}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-echo -e "${BLUE}[1/8] 시스템 검사 중...${NC}"
+# ============================================
+# 0. 스크립트 파일 실행 권한 확인 및 부여
+# ============================================
+
+echo -e "${BLUE}[0/9] 스크립트 권한 확인 중...${NC}"
+
+# 확인할 스크립트 파일 목록
+SCRIPT_FILES=(
+    "stop.sh"
+    "restart.sh"
+    "status.sh"
+    "fix-permissions.sh"
+    "agent/setup.sh"
+    "agent/check.sh"
+    "agent/mcp_agent.py"
+)
+
+FIXED_COUNT=0
+
+for script in "${SCRIPT_FILES[@]}"; do
+    if [ -f "$script" ]; then
+        if [ ! -x "$script" ]; then
+            echo -e "  ${YELLOW}⚠${NC} ${script} - 실행 권한 없음, 권한 부여 중..."
+            chmod +x "$script"
+            if [ -x "$script" ]; then
+                echo -e "  ${GREEN}✓${NC} ${script} - 권한 부여 완료"
+                ((FIXED_COUNT++))
+            else
+                echo -e "  ${RED}✗${NC} ${script} - 권한 부여 실패"
+            fi
+        else
+            echo -e "  ${GREEN}✓${NC} ${script} - 실행 권한 있음"
+        fi
+    else
+        echo -e "  ${YELLOW}⊝${NC} ${script} - 파일 없음 (나중에 생성됨)"
+    fi
+done
+
+if [ $FIXED_COUNT -gt 0 ]; then
+    echo -e "  ${CYAN}💡 ${FIXED_COUNT}개 파일의 실행 권한을 자동으로 부여했습니다.${NC}"
+fi
+
+echo ""
 
 # ============================================
 # 1. 시스템 요구사항 체크
@@ -101,7 +143,7 @@ fi
 # ============================================
 
 echo ""
-echo -e "${BLUE}[2/8] Python 환경 확인 중...${NC}"
+echo -e "${BLUE}[2/9] Python 환경 확인 중...${NC}"
 
 if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
     echo -e "  ${YELLOW}⚠${NC} 패키지 설치 시작..."
@@ -131,7 +173,7 @@ echo -e "  ${GREEN}✓${NC} pip3: ${PIP_VERSION}"
 # ============================================
 
 echo ""
-echo -e "${BLUE}[3/8] Node.js 환경 확인 중...${NC}"
+echo -e "${BLUE}[3/9] Node.js 환경 확인 중...${NC}"
 
 if ! command -v node &> /dev/null; then
     echo -e "  ${YELLOW}⚠${NC} Node.js가 설치되지 않았습니다."
@@ -190,7 +232,7 @@ fi
 # ============================================
 
 echo ""
-echo -e "${BLUE}[4/8] Python 의존성 확인 중...${NC}"
+echo -e "${BLUE}[4/9] Python 의존성 확인 중...${NC}"
 
 # MCP 모듈 체크
 if python3 -c "import mcp" 2>/dev/null; then
@@ -223,7 +265,7 @@ fi
 # ============================================
 
 echo ""
-echo -e "${BLUE}[5/8] Node.js 의존성 확인 중...${NC}"
+echo -e "${BLUE}[5/9] Node.js 의존성 확인 중...${NC}"
 
 if [ ! -d "node_modules" ]; then
     echo -e "  ${YELLOW}⚠${NC} node_modules 없음. npm install 실행 중..."
@@ -244,7 +286,7 @@ fi
 # ============================================
 
 echo ""
-echo -e "${BLUE}[6/8] 디렉토리 구조 생성 중...${NC}"
+echo -e "${BLUE}[6/9] 디렉토리 구조 생성 중...${NC}"
 
 # agent 디렉토리
 if [ ! -d "agent" ]; then
@@ -267,11 +309,86 @@ echo -e "  ${GREEN}✓${NC} logs/ 확인"
 touch agent/logs/.gitkeep agent/rules/.gitkeep 2>/dev/null || true
 
 # ============================================
+# 7.5. Suricata 로그 권한 설정
+# ============================================
+
+echo ""
+echo -e "${BLUE}[6.5/9] Suricata 설정 확인 중...${NC}"
+
+# Suricata 설치 확인
+if command -v suricata &> /dev/null; then
+    echo -e "  ${GREEN}✓${NC} Suricata 설치됨"
+    
+    # eve.json 파일 확인
+    if [ -f "/var/log/suricata/eve.json" ]; then
+        echo -e "  ${GREEN}✓${NC} eve.json 파일 존재"
+        
+        # 읽기 권한 확인
+        if [ -r "/var/log/suricata/eve.json" ]; then
+            echo -e "  ${GREEN}✓${NC} eve.json 읽기 가능"
+        else
+            echo -e "  ${YELLOW}⚠${NC} eve.json 읽기 권한 없음. 권한 설정 중..."
+            
+            # 방법 1: 파일 권한 변경 (sudo 필요)
+            if sudo chmod 644 /var/log/suricata/eve.json 2>/dev/null; then
+                echo -e "  ${GREEN}✓${NC} eve.json 권한 설정 완료 (644)"
+            else
+                # 방법 2: 사용자를 adm 그룹에 추가
+                echo -e "  ${YELLOW}⚠${NC} 사용자를 adm 그룹에 추가 중..."
+                sudo usermod -a -G adm $USER
+                echo -e "  ${GREEN}✓${NC} adm 그룹 추가 완료"
+                echo -e "  ${YELLOW}💡 변경사항 적용을 위해 재로그인이 필요할 수 있습니다.${NC}"
+            fi
+        fi
+        
+        # Suricata 실행 확인
+        if systemctl is-active --quiet suricata; then
+            echo -e "  ${GREEN}✓${NC} Suricata 실행 중"
+        else
+            echo -e "  ${YELLOW}⚠${NC} Suricata가 실행되지 않았습니다."
+            read -p "Suricata를 시작하시겠습니까? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                sudo systemctl start suricata
+                echo -e "  ${GREEN}✓${NC} Suricata 시작됨"
+            fi
+        fi
+    else
+        echo -e "  ${YELLOW}⚠${NC} eve.json 파일이 없습니다."
+        echo -e "  ${CYAN}💡 Suricata를 시작하면 자동으로 생성됩니다.${NC}"
+        
+        # Suricata 시작 시도
+        if ! systemctl is-active --quiet suricata; then
+            read -p "Suricata를 시작하시겠습니까? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                sudo systemctl start suricata
+                sleep 3
+                if [ -f "/var/log/suricata/eve.json" ]; then
+                    sudo chmod 644 /var/log/suricata/eve.json
+                    echo -e "  ${GREEN}✓${NC} Suricata 시작 및 권한 설정 완료"
+                fi
+            fi
+        fi
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} Suricata가 설치되지 않았습니다."
+    echo -e "  ${CYAN}💡 MCP Server는 실행되지만 실제 알림은 수신되지 않습니다.${NC}"
+    echo ""
+    echo -e "  ${CYAN}Suricata 설치 방법:${NC}"
+    echo -e "    sudo apt update"
+    echo -e "    sudo apt install suricata -y"
+    echo -e "    sudo systemctl enable suricata"
+    echo -e "    sudo systemctl start suricata"
+    echo ""
+fi
+
+# ============================================
 # 8. 설정 파일 자동 생성
 # ============================================
 
 echo ""
-echo -e "${BLUE}[7/8] 설정 파일 생성 중...${NC}"
+echo -e "${BLUE}[7/9] 설정 파일 생성 중...${NC}"
 
 # agent_config.json (없을 때만 생성)
 if [ ! -f "agent/agent_config.json" ]; then
@@ -324,7 +441,7 @@ fi
 # ============================================
 
 echo ""
-echo -e "${BLUE}[8/8] 서비스 시작 중...${NC}"
+echo -e "${BLUE}[8/9] 서비스 시작 중...${NC}"
 echo ""
 
 # 이전 프로세스 정리
