@@ -1,5 +1,6 @@
 #!/bin/bash
 # start.sh - One Step Security System Launcher
+# Windows .exe처럼 클릭 한 번으로 모든 것을 설치하고 실행
 
 # 에러 발생 시에도 계속 진행 (권한 문제 등)
 # set -e 제거 - 일부 명령어 실패해도 계속 진행
@@ -181,26 +182,52 @@ if ! command -v node &> /dev/null; then
         echo -e "  ${YELLOW}⚠${NC} nvm 설치 중..."
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
         
-        # nvm 환경변수 로드
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        
         echo -e "  ${GREEN}✓${NC} nvm 설치 완료"
     else
-        # nvm 환경변수 로드
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         echo -e "  ${GREEN}✓${NC} nvm이 이미 설치되어 있습니다."
     fi
     
-    # Node.js 22 설치
-    echo -e "  ${YELLOW}⚠${NC} Node.js 22 설치 중... (시간이 걸릴 수 있습니다)"
-    nvm install 22
-    nvm use 22
+    # nvm 환경변수 로드 (즉시 적용!)
+    export NVM_DIR="$HOME/.nvm"
     
-    echo -e "  ${GREEN}✓${NC} Node.js 설치 완료"
+    # nvm.sh 로드 (여러 경로 시도)
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        \. "$NVM_DIR/nvm.sh"
+        echo -e "  ${GREEN}✓${NC} nvm 환경변수 로드 완료"
+    elif [ -s "/usr/local/opt/nvm/nvm.sh" ]; then
+        \. "/usr/local/opt/nvm/nvm.sh"
+        echo -e "  ${GREEN}✓${NC} nvm 환경변수 로드 완료"
+    else
+        echo -e "  ${RED}✗${NC} nvm.sh를 찾을 수 없습니다"
+        echo -e "  ${YELLOW}해결방법:${NC}"
+        echo -e "    1) 터미널을 닫고 다시 열기"
+        echo -e "    2) source ~/.bashrc 실행"
+        echo -e "    3) 이 스크립트 다시 실행: ./start.sh"
+        exit 1
+    fi
+    
+    # bash_completion도 로드 (선택적)
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    
+    # nvm 작동 확인
+    if command -v nvm &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} nvm 명령어 사용 가능"
+        
+        # Node.js 22 설치
+        echo -e "  ${YELLOW}⏳${NC} Node.js 22 설치 중... (시간이 걸릴 수 있습니다)"
+        nvm install 22
+        nvm use 22
+        
+        echo -e "  ${GREEN}✓${NC} Node.js 설치 완료"
+    else
+        echo -e "  ${RED}✗${NC} nvm 명령어를 찾을 수 없습니다"
+        echo -e "  ${YELLOW}해결방법:${NC}"
+        echo -e "    source ~/.bashrc"
+        echo -e "    ./start.sh"
+        exit 1
+    fi
 else
-    # nvm 환경변수 로드 (이미 설치된 경우)
+    # nvm 환경변수 로드 (이미 설치된 경우에도)
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" 2>/dev/null || true
     
@@ -324,17 +351,97 @@ if command -v suricata &> /dev/null; then
         if [ -r "/var/log/suricata/eve.json" ]; then
             echo -e "  ${GREEN}✓${NC} eve.json 읽기 가능"
         else
-            echo -e "  ${YELLOW}⚠${NC} eve.json 읽기 권한 없음. 권한 설정 중..."
+            echo -e "  ${YELLOW}⚠${NC} eve.json 읽기 권한 없음"
+            echo ""
+            echo -e "  ${CYAN}권한 문제를 해결하기 위해 다음 중 하나를 선택하세요:${NC}"
+            echo -e "  ${YELLOW}1)${NC} 파일 권한 변경 (chmod 644) - 권장"
+            echo -e "  ${YELLOW}2)${NC} 사용자를 adm 그룹에 추가"
+            echo -e "  ${YELLOW}3)${NC} 둘 다 실행"
+            echo -e "  ${YELLOW}4)${NC} 건너뛰기 (나중에 수동으로)"
+            echo ""
+            read -p "선택 (1-4): " -n 1 -r PERMISSION_CHOICE
+            echo ""
             
-            # 방법 1: 파일 권한 변경 (sudo 필요)
-            if sudo chmod 644 /var/log/suricata/eve.json 2>/dev/null; then
-                echo -e "  ${GREEN}✓${NC} eve.json 권한 설정 완료 (644)"
+            case $PERMISSION_CHOICE in
+                1)
+                    echo -e "  ${YELLOW}⏳${NC} 파일 권한 변경 중..."
+                    if sudo chmod 644 /var/log/suricata/eve.json 2>/dev/null; then
+                        sudo chmod 755 /var/log/suricata
+                        echo -e "  ${GREEN}✓${NC} 파일 권한 644로 변경 완료"
+                    else
+                        echo -e "  ${RED}✗${NC} 권한 변경 실패"
+                    fi
+                    ;;
+                2)
+                    CURRENT_USER=$(whoami)
+                    if groups $CURRENT_USER | grep -q "\badm\b"; then
+                        echo -e "  ${GREEN}✓${NC} 이미 adm 그룹에 속해 있습니다"
+                    else
+                        echo -e "  ${YELLOW}⏳${NC} 사용자를 adm 그룹에 추가 중..."
+                        sudo usermod -a -G adm $CURRENT_USER
+                        echo -e "  ${GREEN}✓${NC} adm 그룹 추가 완료"
+                        echo ""
+                        echo -e "  ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                        echo -e "  ${YELLOW}⚠️  중요: 그룹 변경사항 적용 필요${NC}"
+                        echo -e "  ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                        echo ""
+                        echo -e "  다음 명령어를 실행하세요:"
+                        echo -e "  ${GREEN}newgrp adm${NC}"
+                        echo ""
+                        echo -e "  그 다음 이 스크립트를 다시 실행하세요:"
+                        echo -e "  ${GREEN}./start.sh${NC}"
+                        echo ""
+                        exit 0
+                    fi
+                    ;;
+                3)
+                    echo -e "  ${YELLOW}⏳${NC} 파일 권한 변경 중..."
+                    sudo chmod 644 /var/log/suricata/eve.json 2>/dev/null
+                    sudo chmod 755 /var/log/suricata 2>/dev/null
+                    echo -e "  ${GREEN}✓${NC} 파일 권한 변경 완료"
+                    
+                    CURRENT_USER=$(whoami)
+                    if ! groups $CURRENT_USER | grep -q "\badm\b"; then
+                        echo -e "  ${YELLOW}⏳${NC} 사용자를 adm 그룹에 추가 중..."
+                        sudo usermod -a -G adm $CURRENT_USER
+                        echo -e "  ${GREEN}✓${NC} adm 그룹 추가 완료"
+                        echo ""
+                        echo -e "  ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                        echo -e "  ${YELLOW}⚠️  중요: 그룹 변경사항 적용 필요${NC}"
+                        echo -e "  ${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                        echo ""
+                        echo -e "  파일 권한은 즉시 적용되지만,"
+                        echo -e "  그룹 변경은 다음 명령어 실행 후 적용됩니다:"
+                        echo -e "  ${GREEN}newgrp adm${NC}"
+                        echo ""
+                        read -p "지금 바로 적용하고 스크립트를 재시작하시겠습니까? (y/N) " -n 1 -r
+                        echo ""
+                        if [[ $REPLY =~ ^[Yy]$ ]]; then
+                            echo -e "  ${CYAN}💡 다음 명령어를 실행하세요:${NC}"
+                            echo -e "     ${GREEN}newgrp adm${NC}"
+                            echo -e "     ${GREEN}./start.sh${NC}"
+                            exit 0
+                        fi
+                    else
+                        echo -e "  ${GREEN}✓${NC} 이미 adm 그룹에 속해 있습니다"
+                    fi
+                    ;;
+                4)
+                    echo -e "  ${YELLOW}⚠${NC} 건너뛰기 - MCP Server가 작동하지 않을 수 있습니다"
+                    echo -e "  ${CYAN}나중에 수동으로 실행:${NC} ./fix-permissions.sh"
+                    ;;
+                *)
+                    echo -e "  ${YELLOW}⚠${NC} 잘못된 선택 - 건너뛰기"
+                    ;;
+            esac
+            
+            echo ""
+            # 권한 재확인
+            if [ -r "/var/log/suricata/eve.json" ]; then
+                echo -e "  ${GREEN}✓${NC} 최종 확인: eve.json 읽기 가능"
             else
-                # 방법 2: 사용자를 adm 그룹에 추가
-                echo -e "  ${YELLOW}⚠${NC} 사용자를 adm 그룹에 추가 중..."
-                sudo usermod -a -G adm $USER
-                echo -e "  ${GREEN}✓${NC} adm 그룹 추가 완료"
-                echo -e "  ${YELLOW}💡 변경사항 적용을 위해 재로그인이 필요할 수 있습니다.${NC}"
+                echo -e "  ${YELLOW}⚠${NC} 최종 확인: 여전히 읽기 불가"
+                echo -e "  ${CYAN}💡 'newgrp adm' 실행 후 다시 시도하세요${NC}"
             fi
         fi
         
