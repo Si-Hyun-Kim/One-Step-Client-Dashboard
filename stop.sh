@@ -9,7 +9,7 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔═══════════════════════════════════════╗"
-echo "║   🛑 Stopping Security System...     ║"
+echo "║   🛑 Stopping Security System...      ║"
 echo "╚═══════════════════════════════════════╝"
 echo -e "${NC}"
 
